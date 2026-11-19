@@ -1,0 +1,9 @@
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:20:12:aci_l2cap_connection_parameter_update_req	312	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:52:12:aci_l2cap_connection_parameter_update_resp	312	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:96:12:aci_l2cap_coc_connect	312	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:131:12:aci_l2cap_coc_connect_confirm	560	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:173:12:aci_l2cap_coc_reconf	312	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:205:12:aci_l2cap_coc_reconf_confirm	304	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:228:12:aci_l2cap_coc_disconnect	304	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:248:12:aci_l2cap_coc_flow_control	304	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Middlewares/ST/STM32_WPAN/ble/core/auto/ble_l2cap_aci.c:271:12:aci_l2cap_coc_tx_data	304	static

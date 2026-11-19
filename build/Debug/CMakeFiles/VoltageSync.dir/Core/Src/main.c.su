@@ -1,0 +1,4 @@
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/main.c:68:5:main	8	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/main.c:126:6:SystemClock_Config	112	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/main.c:175:6:PeriphCommonClock_Config	88	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/main.c:203:6:Error_Handler	4	static
