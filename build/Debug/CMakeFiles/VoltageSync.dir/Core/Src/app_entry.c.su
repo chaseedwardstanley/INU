@@ -24,7 +24,7 @@
 /Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:435:13:APPE_SysEvtReadyProcessing	48	static
 /Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:516:6:HAL_Delay	24	static
 /Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:547:6:MX_APPE_Process	8	static
-/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:558:6:UTIL_SEQ_Idle	4	static
-/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:566:6:shci_notify_asynch_evt	16	static
-/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:572:6:shci_cmd_resp_release	16	static
-/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:578:6:shci_cmd_resp_wait	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:559:6:UTIL_SEQ_Idle	4	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:567:6:shci_notify_asynch_evt	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:573:6:shci_cmd_resp_release	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/app_entry.c:579:6:shci_cmd_resp_wait	16	static

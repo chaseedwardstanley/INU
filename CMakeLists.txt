@@ -48,6 +48,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     STM32_WPAN/App/app_protocol.c
     STM32_WPAN/App/v_profile.c
     STM32_WPAN/App/v_profile_format.c
+    STM32_WPAN/App/v_playback.c
 )
 
 # Add include paths

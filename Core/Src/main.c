@@ -25,6 +25,8 @@
 #include "rtc.h"
 #include "tim.h"
 #include "gpio.h"
+#include "app_conf.h"
+#include "stm32_seq.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -39,7 +41,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define TIM2_COMPARE_INTERVAL_US  1000000U
 
 /* USER CODE END PD */
 
@@ -54,6 +55,7 @@
 
 /* Incremented every time TIM2 Channel 1 fires. */
 volatile uint32_t tim2CompareCount = 0U;
+
 
 /* USER CODE END PV */
 
@@ -121,24 +123,27 @@ int main(void)
       Error_Handler();
   }
 
+  /* Initialize TIM2 Channel 1 output compare without interrupts. */
+if (HAL_TIM_OC_Start(&htim2, TIM_CHANNEL_1) != HAL_OK)
+{
+    Error_Handler();
+}
+
+/* No playback deadline is scheduled yet. */
+__HAL_TIM_DISABLE_IT(&htim2, TIM_IT_CC1);
+__HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
+
   /*
    * Schedule the first Channel 1 compare event
    * one second after the current counter value.
    */
-  __HAL_TIM_SET_COMPARE(
-      &htim2,
-      TIM_CHANNEL_1,
-      __HAL_TIM_GET_COUNTER(&htim2) + TIM2_COMPARE_INTERVAL_US
-  );
+  
 
   /*
    * Enable TIM2 Channel 1 output-compare interrupts.
    * No physical output pin is required.
    */
-  if (HAL_TIM_OC_Start_IT(&htim2, TIM_CHANNEL_1) != HAL_OK)
-  {
-      Error_Handler();
-  }
+  
 
   /* USER CODE END 2 */
 
@@ -263,26 +268,13 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
     if ((htim->Instance == TIM2) &&
         (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1))
     {
-        /*
-         * Increment the debugger-visible event counter.
-         */
         tim2CompareCount++;
 
-        /*
-         * Schedule relative to the previous compare
-         * timestamp rather than the current counter.
-         *
-         * This avoids accumulating interrupt latency
-         * into the timer schedule.
-         */
-        uint32_t nextCompare =
-            __HAL_TIM_GET_COMPARE(htim, TIM_CHANNEL_1)
-            + TIM2_COMPARE_INTERVAL_US;
+        __HAL_TIM_DISABLE_IT(htim, TIM_IT_CC1);
 
-        __HAL_TIM_SET_COMPARE(
-            htim,
-            TIM_CHANNEL_1,
-            nextCompare
+        UTIL_SEQ_SetTask(
+            1UL << CFG_TASK_VSP_PLAYBACK_ID,
+            CFG_SCH_PRIO_0
         );
     }
 }

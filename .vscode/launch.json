@@ -1,17 +1,15 @@
-
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "VoltageSync STM32WB55 Debug",
+      "name": "VoltageSync STM32WB55 Attach",
       "type": "cortex-debug",
-      "request": "launch",
+      "request": "attach",
       "servertype": "external",
       "gdbTarget": "localhost:3333",
       "executable": "${workspaceFolder}/build/Debug/VoltageSync.elf",
       "gdbPath": "/Applications/ArmGNUToolchain/15.3.rel2/arm-none-eabi/bin/arm-none-eabi-gdb",
-      "device": "STM32WB55RG",
-      "runToEntryPoint": "main"
+      "device": "STM32WB55RG"
     }
   ]
 }

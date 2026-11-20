@@ -25,11 +25,14 @@
 #include "ble.h"
 #include "p2p_server_app.h"
 #include "stm32_seq.h"
-
+#include "tim.h"
+#include "stm32wbxx_hal_tim.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app_protocol.h"
 #include "v_profile.h"
+#include "v_playback.h"
+#include "v_profile_format.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,6 +42,8 @@
 
 /* Private defines ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define VSP_CMD_GET_DIAGNOSTICS 0x30U
+#define VSP_DIAGNOSTICS_PAYLOAD_SIZE 25U
 
 /* USER CODE END PD */
 
@@ -49,7 +54,13 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+extern volatile uint32_t tim2CompareCount; /* Defined in main.c */
 static VSP_Profile_t vspProfile;
+static VSP_Playback_t vspPlayback;
+/* Read-only diagnostic snapshot, updated by the sequencer playback task. */
+static volatile uint32_t sampleTimeUs[2] = {0U, 0U};
+static volatile uint32_t sampleIntervalUs = 0U;
+static volatile uint16_t lastDacCode = 0U;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,6 +70,11 @@ static void VSP_SendResponse(
     uint8_t command,
     int status
 );
+
+static void VSP_Playback_Task(void);
+static void VSP_SendDiagnostics(const VSP_Header_t *request);
+static void VSP_WriteU16LE(uint8_t *dest, uint16_t value);
+static void VSP_WriteU32LE(uint8_t *dest, uint32_t value);
 /* USER CODE END PFP */
 
 /* Functions Definition ------------------------------------------------------*/
@@ -220,6 +236,63 @@ void P2PS_STM_App_Notification(P2PS_STM_App_Notification_evt_t *pNotification)
                         break;
                     }
 
+                    case VSP_CMD_PLAY:
+                    {
+                        if (header.payloadLength != 0U)
+                        {
+                            VSP_SendResponse(
+                                &header,
+                                VSP_CMD_PLAY,
+                                -1
+                            );
+                            break;
+                        }
+
+                        uint32_t startTimeUs = __HAL_TIM_GET_COUNTER(&htim2);
+
+                        result = VSP_Playback_Start(
+                            &vspPlayback,
+                            &vspProfile,
+                            startTimeUs
+                        );
+
+                        if (result == 0)
+                        {
+                            /* Start each successful playback with clean diagnostics. */
+                            __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_CC1);
+                            __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
+                            sampleTimeUs[0] = 0U;
+                            sampleTimeUs[1] = 0U;
+                            sampleIntervalUs = 0U;
+                            lastDacCode = 0U;
+                            UTIL_SEQ_SetTask(
+                                1UL << CFG_TASK_VSP_PLAYBACK_ID,
+                                CFG_SCH_PRIO_0
+                            );
+                        }
+
+                        VSP_SendResponse(
+                            &header,
+                            VSP_CMD_PLAY,
+                            result
+                        );
+
+                        break;
+                    }
+
+                    case VSP_CMD_GET_DIAGNOSTICS:
+                    {
+                        if (header.payloadLength != 0U)
+                        {
+                            VSP_SendResponse(&header, VSP_CMD_GET_DIAGNOSTICS, -1);
+                        }
+                        else
+                        {
+                            VSP_SendDiagnostics(&header);
+                        }
+                        break;
+                    }
+
                     default:
                     {
                         VSP_SendResponse(
@@ -284,6 +357,13 @@ void P2PS_APP_Notification(P2PS_APP_ConnHandle_Not_evt_t *pNotification)
 void P2PS_APP_Init(void)
 {
 /* USER CODE BEGIN P2PS_APP_Init */
+  VSP_Profile_Init(&vspProfile);
+  VSP_Playback_Init(&vspPlayback);
+  UTIL_SEQ_RegTask(
+    1UL << CFG_TASK_VSP_PLAYBACK_ID,
+    UTIL_SEQ_RFU,
+    VSP_Playback_Task
+);
 
 /* USER CODE END P2PS_APP_Init */
   return;
@@ -309,6 +389,170 @@ void P2PS_APP_Init(void)
  *
  * The response retains the request's transfer ID and sequence.
  */
+static uint32_t VSP_ReadTimestampUs(uint32_t sampleIndex)
+{
+    uint32_t offset =
+        VSP_FORMAT_HEADER_SIZE +
+        sampleIndex * VSP_FORMAT_RECORD_SIZE;
+
+    const uint8_t *record = &vspProfile.data[offset];
+
+    return (uint32_t)record[0] |
+           ((uint32_t)record[1] << 8) |
+           ((uint32_t)record[2] << 16) |
+           ((uint32_t)record[3] << 24);
+}
+
+static void VSP_Playback_Task(void)
+{
+    static volatile uint32_t executionCount = 0U;
+
+    executionCount++;
+
+    uint32_t nowUs = __HAL_TIM_GET_COUNTER(&htim2);
+    uint16_t dacCode = 0U;
+
+    uint32_t previousSample = vspPlayback.nextSample;
+
+    int result = VSP_Playback_Update(
+        &vspPlayback,
+        nowUs,
+        &dacCode
+    );
+
+    if (result > 0)
+    {
+        lastDacCode = dacCode;
+
+        uint32_t currentSample = vspPlayback.nextSample;
+
+        if (previousSample == 0U && currentSample == 1U)
+        {
+            sampleTimeUs[0] = nowUs;
+        }
+        else if (previousSample == 1U && currentSample == 2U)
+        {
+            sampleTimeUs[1] = nowUs;
+            sampleIntervalUs = sampleTimeUs[1] - sampleTimeUs[0];
+        }
+    }
+
+    if (vspPlayback.state == VSP_PLAYBACK_RUNNING &&
+        vspPlayback.nextSample < vspPlayback.sampleCount)
+    {
+        uint32_t nextTimestampUs =
+            VSP_ReadTimestampUs(vspPlayback.nextSample);
+
+        uint32_t deadlineUs =
+            vspPlayback.startTimeUs + nextTimestampUs;
+
+        /*
+         * Arm TIM2 Channel 1 for the next sample.
+         * If the deadline has already passed, request
+         * another update immediately.
+         */
+        uint32_t currentUs = __HAL_TIM_GET_COUNTER(&htim2);
+
+        if ((int32_t)(deadlineUs - currentUs) <= 0)
+        {
+            UTIL_SEQ_SetTask(
+                1UL << CFG_TASK_VSP_PLAYBACK_ID,
+                CFG_SCH_PRIO_0
+            );
+        }
+        else
+        {
+            __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_CC1);
+
+            __HAL_TIM_SET_COMPARE(
+                &htim2,
+                TIM_CHANNEL_1,
+                deadlineUs
+            );
+
+            __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
+
+            __HAL_TIM_ENABLE_IT(&htim2, TIM_IT_CC1);
+
+            /*
+            * Check whether the deadline passed while
+            * we were configuring the compare register.
+            */
+            uint32_t afterArmUs =
+                __HAL_TIM_GET_COUNTER(&htim2);
+
+            if ((int32_t)(deadlineUs - afterArmUs) <= 0)
+            {
+                __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_CC1);
+
+                UTIL_SEQ_SetTask(
+                    1UL << CFG_TASK_VSP_PLAYBACK_ID,
+                    CFG_SCH_PRIO_0
+                );
+            }
+        }
+    }
+    else
+    {
+        __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_CC1);
+    }
+}
+
+/* Diagnostics payload (25 bytes, little-endian):
+ *  0..1 status (uint16, 0 = success)
+ *  2    playback state (uint8)
+ *  3..6 nextSample (uint32)
+ *  7..10 TIM2 compare IRQ count (uint32)
+ * 11..14 first sample processing time (uint32, us)
+ * 15..18 second sample processing time (uint32, us)
+ * 19..22 measured sample interval (uint32, us)
+ * 23..24 final calculated DAC code (uint16)
+ */
+static void VSP_WriteU16LE(uint8_t *dest, uint16_t value)
+{
+    dest[0] = (uint8_t)value;
+    dest[1] = (uint8_t)(value >> 8);
+}
+
+static void VSP_WriteU32LE(uint8_t *dest, uint32_t value)
+{
+    dest[0] = (uint8_t)value;
+    dest[1] = (uint8_t)(value >> 8);
+    dest[2] = (uint8_t)(value >> 16);
+    dest[3] = (uint8_t)(value >> 24);
+}
+
+static void VSP_SendDiagnostics(const VSP_Header_t *request)
+{
+    uint8_t payload[VSP_DIAGNOSTICS_PAYLOAD_SIZE] = {0};
+    VSP_WriteU16LE(&payload[0], 0U);
+    payload[2] = (uint8_t)vspPlayback.state;
+    VSP_WriteU32LE(&payload[3], vspPlayback.nextSample);
+    VSP_WriteU32LE(&payload[7], tim2CompareCount);
+    VSP_WriteU32LE(&payload[11], sampleTimeUs[0]);
+    VSP_WriteU32LE(&payload[15], sampleTimeUs[1]);
+    VSP_WriteU32LE(&payload[19], sampleIntervalUs);
+    VSP_WriteU16LE(&payload[23], lastDacCode);
+
+    VSP_Header_t responseHeader = {
+        .version = VSP_VERSION_MAJOR,
+        .command = VSP_CMD_GET_DIAGNOSTICS,
+        .flags = 0U,
+        .headerLength = VSP_HEADER_SIZE,
+        .transferId = request->transferId,
+        .sequence = request->sequence,
+        .payloadLength = sizeof(payload)
+    };
+    uint8_t packet[VSP_HEADER_SIZE + VSP_DIAGNOSTICS_PAYLOAD_SIZE];
+    uint16_t packetLength = 0U;
+    if (VSP_EncodePacket(&responseHeader, payload, packet,
+                         sizeof(packet), &packetLength) == 0)
+    {
+        (void)P2PS_STM_App_Update_Char(
+            P2P_NOTIFY_CHAR_UUID, packet, (uint8_t)packetLength);
+    }
+}
+
 static void VSP_SendResponse(
     const VSP_Header_t *request,
     uint8_t command,
