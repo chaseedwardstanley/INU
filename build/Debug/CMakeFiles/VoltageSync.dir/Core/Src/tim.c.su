@@ -1,0 +1,5 @@
+/Users/chaseedwardstanley/Documents/VoltageSync/cmake/stm32cubemx/../../Drivers/STM32WBxx_HAL_Driver/Inc/stm32wbxx_ll_bus.h:939:22:LL_APB1_GRP1_EnableClock	24	static
+/Users/chaseedwardstanley/Documents/VoltageSync/cmake/stm32cubemx/../../Drivers/STM32WBxx_HAL_Driver/Inc/stm32wbxx_ll_bus.h:1038:22:LL_APB1_GRP1_DisableClock	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/tim.c:30:6:MX_TIM2_Init	64	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/tim.c:83:6:HAL_TIM_Base_MspInit	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/Core/Src/tim.c:103:6:HAL_TIM_Base_MspDeInit	16	static

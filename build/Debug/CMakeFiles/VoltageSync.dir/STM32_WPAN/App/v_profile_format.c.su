@@ -1,0 +1,3 @@
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile_format.c:5:17:VSP_Format_ReadU16	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile_format.c:11:17:VSP_Format_ReadU32	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile_format.c:19:5:VSP_Profile_Validate	48	static

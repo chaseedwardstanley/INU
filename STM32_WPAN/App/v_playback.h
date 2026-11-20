@@ -3,7 +3,7 @@
 #define VSP_PLAYBACK_H
 
 #include <stdint.h>
-#include "vsp_profile.h"
+#include "v_profile.h"
 
 typedef enum
 {

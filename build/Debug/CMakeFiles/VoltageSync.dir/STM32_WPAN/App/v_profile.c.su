@@ -1,0 +1,6 @@
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile.c:6:6:VSP_Profile_Init	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile.c:29:5:VSP_Profile_Begin	24	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile.c:77:5:VSP_Profile_Write	32	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile.c:146:17:VSP_Profile_Crc32	32	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile.c:173:5:VSP_Profile_Complete	32	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/v_profile.c:247:5:VSP_Profile_Abort	16	static

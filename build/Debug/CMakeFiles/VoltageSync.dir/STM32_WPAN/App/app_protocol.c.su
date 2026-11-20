@@ -1,0 +1,6 @@
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/app_protocol.c:14:17:VSP_ReadU16	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/app_protocol.c:20:17:VSP_ReadU32	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/app_protocol.c:39:5:VSP_ParsePacket	24	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/app_protocol.c:85:13:VSP_WriteU16	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/app_protocol.c:91:13:VSP_WriteU32	16	static
+/Users/chaseedwardstanley/Documents/VoltageSync/STM32_WPAN/App/app_protocol.c:105:5:VSP_EncodePacket	32	static

@@ -277,6 +277,11 @@ tBleStatus P2PS_STM_App_Update_Char(
 {
     tBleStatus result = BLE_STATUS_INVALID_PARAMS;
 
+    if ((Length > 153U) || ((pPayload == NULL) && (Length > 0U)))
+  {
+      return BLE_STATUS_INVALID_PARAMS;
+  }
+
     switch (UUID)
     {
         case P2P_NOTIFY_CHAR_UUID:

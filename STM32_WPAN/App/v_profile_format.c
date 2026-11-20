@@ -35,7 +35,6 @@ int VSP_Profile_Validate(
         return -2;
     }
 
-    /* Reserved bytes must be zero. */
     if ((data[2] != 0U) || (data[3] != 0U))
     {
         return -2;
@@ -48,10 +47,6 @@ int VSP_Profile_Validate(
         return -3;
     }
 
-    /*
-     * Check the expected length without overflowing
-     * the multiplication.
-     */
     if (sampleCount >
         ((length - VSP_FORMAT_HEADER_SIZE) /
          VSP_FORMAT_RECORD_SIZE))
@@ -87,10 +82,6 @@ int VSP_Profile_Validate(
             return -4;
         }
 
-        /*
-         * The first sample must start at t = 0.
-         * Subsequent timestamps must increase.
-         */
         if (i == 0U)
         {
             if (timestamp != 0U)

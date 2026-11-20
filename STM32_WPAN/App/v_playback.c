@@ -3,15 +3,15 @@
 #include "v_profile_format.h"
 #include <stddef.h>
 
-static uint16_t VSP_Playback_ReadU16(
-    const uint8_t *data)
+/* Read a little-endian 16-bit value. */
+static uint16_t VSP_Playback_ReadU16(const uint8_t *data)
 {
     return (uint16_t)data[0] |
            ((uint16_t)data[1] << 8);
 }
 
-static uint32_t VSP_Playback_ReadU32(
-    const uint8_t *data)
+/* Read a little-endian 32-bit value. */
+static uint32_t VSP_Playback_ReadU32(const uint8_t *data)
 {
     return (uint32_t)data[0] |
            ((uint32_t)data[1] << 8) |
@@ -21,15 +21,12 @@ static uint32_t VSP_Playback_ReadU32(
 
 /*
  * Convert 0–5000 mV to a 12-bit DAC code.
- *
- * Integer arithmetic with rounding.
+ * Rounded integer arithmetic.
  */
-static uint16_t VSP_Playback_MvToDac(
-    uint16_t millivolts)
+static uint16_t VSP_Playback_MvToDac(uint16_t millivolts)
 {
     return (uint16_t)(
-        ((uint32_t)millivolts * 4095U + 2500U)
-        / 5000U
+        ((uint32_t)millivolts * 4095U + 2500U) / 5000U
     );
 }
 
@@ -62,8 +59,17 @@ int VSP_Playback_Start(
         return -2;
     }
 
+    /* Validate the stored profile before playback. */
+    if (VSP_Profile_Validate(
+            profile->data,
+            profile->expectedLength) != 0)
+    {
+        return -3;
+    }
+
     playback->profile = profile;
 
+    /* Sample count occupies bytes 4–7 of the header. */
     playback->sampleCount =
         VSP_Playback_ReadU32(&profile->data[4]);
 
@@ -83,6 +89,9 @@ void VSP_Playback_Stop(VSP_Playback_t *playback)
 
     playback->state = VSP_PLAYBACK_STOPPED;
     playback->profile = NULL;
+    playback->sampleCount = 0U;
+    playback->nextSample = 0U;
+    playback->startTimeUs = 0U;
 }
 
 int VSP_Playback_Update(
@@ -100,13 +109,20 @@ int VSP_Playback_Update(
         return 0;
     }
 
+    const VSP_Profile_t *profile = playback->profile;
+
+    if (profile == NULL)
+    {
+        playback->state = VSP_PLAYBACK_STOPPED;
+        return -1;
+    }
+
     uint32_t elapsedUs =
         nowUs - playback->startTimeUs;
 
     /*
-     * Process all samples that are due.
-     * If multiple samples are overdue, output
-     * the latest one rather than replaying stale values.
+     * Process all samples currently due.
+     * If multiple samples are overdue, output the latest.
      */
     int updated = 0;
 
@@ -116,10 +132,11 @@ int VSP_Playback_Update(
             VSP_FORMAT_HEADER_SIZE +
             playback->nextSample * VSP_FORMAT_RECORD_SIZE;
 
+        const uint8_t *record =
+            &profile->data[offset];
+
         uint32_t timestampUs =
-            VSP_Playback_ReadU32(
-                &playback->profile->data[offset]
-            );
+            VSP_Playback_ReadU32(record);
 
         if (timestampUs > elapsedUs)
         {
@@ -127,9 +144,7 @@ int VSP_Playback_Update(
         }
 
         uint16_t voltageMv =
-            VSP_Playback_ReadU16(
-                &playback->profile->data[offset + 4U]
-            );
+            VSP_Playback_ReadU16(&record[4]);
 
         *dacCode = VSP_Playback_MvToDac(voltageMv);
 
