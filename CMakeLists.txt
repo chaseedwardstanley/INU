@@ -45,11 +45,15 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    STM32_WPAN/App/app_protocol.c
+    STM32_WPAN/App/v_profile.c
+    STM32_WPAN/App/v_profile_format.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    STM32_WPAN/App
 )
 
 # Add project symbols (macros)

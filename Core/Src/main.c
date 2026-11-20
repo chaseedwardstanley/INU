@@ -21,6 +21,7 @@
 #include "ipcc.h"
 #include "rf.h"
 #include "rtc.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -99,8 +100,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_RTC_Init();
+  MX_TIM2_Init();
   MX_RF_Init();
   /* USER CODE BEGIN 2 */
+
+  if (HAL_TIM_Base_Start(&htim2) != HAL_OK)
+  {
+      Error_Handler();
+  }
 
   /* USER CODE END 2 */
 

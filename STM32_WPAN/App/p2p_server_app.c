@@ -28,7 +28,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "app_protocol.h"
+#include "v_profile.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,12 +49,16 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+static VSP_Profile_t vspProfile;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-
+static void VSP_SendResponse(
+    const VSP_Header_t *request,
+    uint8_t command,
+    int status
+);
 /* USER CODE END PFP */
 
 /* Functions Definition ------------------------------------------------------*/
@@ -82,15 +87,153 @@ void P2PS_STM_App_Notification(P2PS_STM_App_Notification_evt_t *pNotification)
 
     case P2PS_STM_WRITE_EVT:
 /* USER CODE BEGIN P2PS_STM_WRITE_EVT */
-{
-    P2PS_STM_App_Update_Char(
-        P2P_NOTIFY_CHAR_UUID,
-        pNotification->DataTransfered.pPayload,
-        pNotification->DataTransfered.Length
-    );
-}
+        {
+            const uint8_t *packet =
+                pNotification->DataTransfered.pPayload;
+
+            uint16_t packetLength =
+                pNotification->DataTransfered.Length;
+
+            VSP_Header_t header;
+
+            int result = VSP_ParsePacket(
+                packet,
+                packetLength,
+                &header
+            );
+
+            if (result == 0)
+            {
+                const uint8_t *payload = &packet[VSP_HEADER_SIZE];
+
+                if (packetLength > VSP_MAX_PACKET_SIZE)
+                {
+                    break;
+                }
+
+                switch (header.command)
+                {
+                    case VSP_CMD_HELLO:
+                    {
+                        VSP_SendResponse(
+                            &header,
+                            VSP_CMD_HELLO,
+                            0
+                        );
+                        break;
+                    }
+
+                    case VSP_CMD_PROFILE_BEGIN:
+                    {
+                        if (header.payloadLength != 4U)
+                        {
+                            VSP_SendResponse(
+                                &header,
+                                VSP_CMD_PROFILE_BEGIN,
+                                -1
+                            );
+                            break;
+                        }
+
+                        uint32_t expectedLength =
+                            (uint32_t)payload[0] |
+                            ((uint32_t)payload[1] << 8) |
+                            ((uint32_t)payload[2] << 16) |
+                            ((uint32_t)payload[3] << 24);
+
+                        result = VSP_Profile_Begin(
+                            &vspProfile,
+                            header.transferId,
+                            expectedLength
+                        );
+
+                        VSP_SendResponse(
+                            &header,
+                            VSP_CMD_PROFILE_BEGIN,
+                            result
+                        );
+                        break;
+                    }
+
+                    case VSP_CMD_PROFILE_DATA:
+                    {
+                        result = VSP_Profile_Write(
+                            &vspProfile,
+                            header.transferId,
+                            header.sequence,
+                            payload,
+                            header.payloadLength
+                        );
+
+                        VSP_SendResponse(
+                            &header,
+                            VSP_CMD_PROFILE_DATA,
+                            result
+                        );
+                        break;
+                    }
+
+                    case VSP_CMD_PROFILE_COMPLETE:
+                    {
+                        if (header.payloadLength != 4U)
+                        {
+                            VSP_SendResponse(
+                                &header,
+                                VSP_CMD_PROFILE_COMPLETE,
+                                -1
+                            );
+                            break;
+                        }
+
+                        uint32_t expectedCrc =
+                            (uint32_t)payload[0] |
+                            ((uint32_t)payload[1] << 8) |
+                            ((uint32_t)payload[2] << 16) |
+                            ((uint32_t)payload[3] << 24);
+
+                        result = VSP_Profile_Complete(
+                            &vspProfile,
+                            header.transferId,
+                            expectedCrc
+                        );
+
+                        VSP_SendResponse(
+                            &header,
+                            VSP_CMD_PROFILE_READY,
+                            result
+                        );
+                        break;
+                    }
+
+                    case VSP_CMD_PROFILE_ABORT:
+                    {
+                        result = VSP_Profile_Abort(
+                            &vspProfile,
+                            header.transferId
+                        );
+
+                        VSP_SendResponse(
+                            &header,
+                            VSP_CMD_PROFILE_ABORT,
+                            result
+                        );
+                        break;
+                    }
+
+                    default:
+                    {
+                        VSP_SendResponse(
+                            &header,
+                            header.command,
+                            -1
+                        );
+                        break;
+                    }
+                }
+            }
+        }
 /* USER CODE END P2PS_STM_WRITE_EVT */
-    break;
+      break;
 
     default:
 /* USER CODE BEGIN P2PS_STM_App_Notification_default */
@@ -156,5 +299,54 @@ void P2PS_APP_Init(void)
  *
  *************************************************************/
 /* USER CODE BEGIN FD_LOCAL_FUNCTIONS*/
+
+/*
+ * Send a VSP response on FE42.
+ *
+ * Payload:
+ *   Byte 0: Status (0 = success, nonzero = error)
+ *   Byte 1: Reserved
+ *
+ * The response retains the request's transfer ID and sequence.
+ */
+static void VSP_SendResponse(
+    const VSP_Header_t *request,
+    uint8_t command,
+    int status)
+{
+    uint8_t payload[2] =
+    {
+        (uint8_t)(status == 0 ? 0 : -status),
+        0U
+    };
+
+    VSP_Header_t responseHeader =
+    {
+        .version = VSP_VERSION_MAJOR,
+        .command = command,
+        .flags = 0U,
+        .headerLength = VSP_HEADER_SIZE,
+        .transferId = request->transferId,
+        .sequence = request->sequence,
+        .payloadLength = sizeof(payload)
+    };
+
+    uint8_t packet[VSP_HEADER_SIZE + sizeof(payload)];
+    uint16_t packetLength = 0U;
+
+    if (VSP_EncodePacket(
+            &responseHeader,
+            payload,
+            packet,
+            sizeof(packet),
+            &packetLength) == 0)
+    {
+        (void)P2PS_STM_App_Update_Char(
+            P2P_NOTIFY_CHAR_UUID,
+            packet,
+            (uint8_t)packetLength
+        );
+    }
+}
 
 /* USER CODE END FD_LOCAL_FUNCTIONS*/

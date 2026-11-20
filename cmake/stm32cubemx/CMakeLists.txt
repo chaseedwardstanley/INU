@@ -55,6 +55,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/app_debug.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/hw_timerserver.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/stm32_lpm_if.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/tim.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/stm32wbxx_it.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/stm32wbxx_hal_msp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sysmem.c
